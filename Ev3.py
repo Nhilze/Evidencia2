@@ -1,6 +1,8 @@
 import sys
+import datetime
 import sqlite3
 from sqlite3 import Error
+
 from collections import namedtuple
 datos =("fecha","Descripcion", "Cantidad", "Precio", "total")
 
@@ -13,9 +15,9 @@ total2= 0
 i=0
 
 try:
-    with sqlite3.connect("Evidencia3.db") as conn:
+    with sqlite3.connect("Evidencia.db") as conn:
         c = conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS Ventas (folio INT, fecha TEXT NOT NULL, descripcion TEXT NOT NULL,cantidad NUMERIC, precio NUMERIC, total NUMERIC );")
+        c.execute("CREATE TABLE IF NOT EXISTS Ventas (folio INT, fecha TIMESTAMP NOT NULL, descripcion TEXT NOT NULL,cantidad NUMERIC, precio NUMERIC, total NUMERIC );")
         print("Tabla creada exitosamente")
 except Error as e:
     print (e)
@@ -56,7 +58,7 @@ while switch:
                 lista_ventas.append(Venta_Registrada)
                 print("El total con iva incluido es: ",total2)
                 try:
-                     with sqlite3.connect("Evidencia3.db") as conn: #Puente
+                     with sqlite3.connect("Evidencia.db") as conn: #Puente
                          mi_cursor=conn.cursor()
                          mi_cursor.execute('INSERT INTO Ventas VALUES(?,?,?,?,?,?);',(fol,fecha,descripcion,cantidad,precio,total,))
                          print("Registro agregado exitosamente")
@@ -72,25 +74,32 @@ while switch:
 
     elif opcion == "2":
         clave_buscar = int(input("Ingresa el folio de la compra que realizaste: "))
-        if clave_buscar in diccionario_ventas.keys():
-            print("Los datos de la venta son: ")
-            print("FECHA\t\tDESCRIPCION\t\tCANTIDAD\t\tPRECIO\t\tTOTAL")
-            print("-----------------------------------------------------------------------------------------")
-            for fecha, descripcion, cantidad, precio, total in diccionario_ventas[clave_buscar]:
-                print(f"{fecha}\t{descripcion}\t\t\t{cantidad}\t\t\t{precio}\t\t{total}")
+        try:
+            with sqlite3.connect("Evidencia.db") as conn:
+                c=conn.cursor()
+                c.execute("SELECT DISTINCT fecha, descripcion, cantidad, precio, total FROM Ventas WHERE folio = ?",(clave_buscar,))
+                registros = c.fetchall()
+                print("FECHA\t\tDESCRIPCION\t\tCANTIDAD\t\tPRECIO\t\tTOTAL")
+                print("-----------------------------------------------------------------------------------------")
+                for fecha, descripcion, cantidad, precio, total in registros:
+                    print(f"{fecha}\t{descripcion}\t\t\t{cantidad}\t\t\t{precio}\t\t{total}")
 
-            print("")
-            print("Regresaremos al Menu Principal")
-            print("")
-        else:
-            print("Este folio no esta registrado")
+        except Error as e:
+            print(e)
+        except Exception:
+            print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+        finally:
+            if conn:
+                conn.close()
 
     elif opcion == "3":
         fecha_reporte = input("Ingrese La Fecha (dd/mm/aaaa): \n")
+        fecha_consulta = datetime.datetime.strptime(fecha_reporte, "%d/%m/%Y").date()
         try:
-            with sqlite3.connect("Evidencia3.db") as conn:
+            with sqlite3.connect("Evidencia.db") as conn:
                 c = conn.cursor()
-                c.execute("SELECT * FROM Ventas WHERE fecha",(fecha_reporte))
+                criterio = {"fecha":fecha_consulta}
+                c.execute("SELECT DISTINCT fecha, descripcion, cantidad, precio, total FROM Ventas WHERE fecha = ?", (fecha_reporte,))
                 registros = c.fetchall()
                 print("FECHA\t\tDESCRIPCION\t\tCANTIDAD\t\tPRECIO\t\tTOTAL")
                 print("-----------------------------------------------------------------------------------------")
